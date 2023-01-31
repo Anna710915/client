@@ -87,7 +87,6 @@ namespace client
         {
             StreamWriter sw = null;
             StreamReader sr = null;
-            FileStream fileStream = null;
             try
             {
                 string curItem = listFiles.SelectedItem.ToString();
@@ -96,41 +95,29 @@ namespace client
                 sr = new StreamReader(client.GetStream());
                 sw.AutoFlush = true;
                 await sw.WriteLineAsync(curItem);
-                byte[] recievedFile = null;
-                byte[] buffer = new byte[1];
-
-                while (true)
+                byte[] buffer = new byte[1024];
+                using (FileStream outputFile = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem)) 
                 {
-                    int count = await client.GetStream().ReadAsync(buffer, 0, 1);
-                    if (count == 0)
+
+                    while (true)
                     {
-                        break;
+                        int count = await client.GetStream().ReadAsync(buffer, 0, buffer.Length);
+                        if (count == 0)
+                        {
+                            break;
+                        }
+
+                        await outputFile.WriteAsync(buffer, 0, count);
                     }
-                    if (recievedFile == null)
-                    {
-                        recievedFile = buffer;
-                    }
-                    else
-                    {
-                        recievedFile = recievedFile.Concat(buffer).ToArray();
-                    }
+                };
 
-                }
-
-                textStatus.Text += "Downloading file " + curItem + "..." + "Bytes: " + recievedFile.Length + Environment.NewLine;
-
-                ////Directory.CreateDirectory(Directory.GetCurrentDirectory() + "\\exe");
-                fileStream = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem);
-
-                fileStream.Write(recievedFile, 0, recievedFile.Length);
-                fileStream.Flush();
-                fileStream.Close();
+                textStatus.Text += "Downloading file " + curItem + "..." + Environment.NewLine;
 
                 // Use ProcessStartInfo class
                 textStatus.Text += "Start executing file " + curItem + "..." + Environment.NewLine;
 
                 ProcessStartInfo startInfo = new ProcessStartInfo();
-                startInfo.UseShellExecute = false;
+                startInfo.UseShellExecute = true;
                 startInfo.FileName = Directory.GetCurrentDirectory() + "\\" + curItem;
 
                 try
