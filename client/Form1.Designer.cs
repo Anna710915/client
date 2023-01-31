@@ -37,6 +37,7 @@ namespace client
             this.textStatus = new System.Windows.Forms.TextBox();
             this.listFiles = new System.Windows.Forms.ListBox();
             this.getFiles = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // textPort
@@ -108,11 +109,22 @@ namespace client
             this.getFiles.UseVisualStyleBackColor = true;
             this.getFiles.Click += new System.EventHandler(this.getFiles_Click);
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(394, 197);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(92, 50);
+            this.button1.TabIndex = 14;
+            this.button1.Text = "start file";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click_1);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.getFiles);
             this.Controls.Add(this.listFiles);
             this.Controls.Add(this.textStatus);
@@ -139,6 +151,7 @@ namespace client
         private System.Windows.Forms.TextBox textStatus;
         private System.Windows.Forms.ListBox listFiles;
         private System.Windows.Forms.Button getFiles;
+        private System.Windows.Forms.Button button1;
     }
 }
 

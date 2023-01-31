@@ -11,78 +11,19 @@ using System.Windows.Forms;
 using System.Net;
 using System.Threading;
 using System.Net.Sockets;
+using System.Diagnostics;
 
 namespace client
 {
-    
 
     public partial class Form1 : Form
     {
         TcpClient client;
         int port;
-        IPAddress ipAddress;
 
         public Form1()
         {
             InitializeComponent();
-        }
-
-        private void startClient()
-        {
-            try
-            {
-                SendMessageFromSocket(11000);
-            }
-            catch (Exception ex)
-            {
-                this.label1.Invoke((MethodInvoker)(() => this.label1.Text = ex.Message));
-            }
-            finally
-            {
-                Console.ReadLine();
-            }
-        }
-
-        private void SendMessageFromSocket(int port)
-        {
-            //// Буфер для входящих данных
-            //byte[] bytes = new byte[1024];
-
-            //// Соединяемся с удаленным устройством
-
-            //// Устанавливаем удаленную точку для сокета
-            ////IPAddress ipAddr = IPAddress.Any;
-
-            
-            //IPAddress ipAddr = IPAddress.Parse("192.168.43.233");
-            //IPEndPoint ipEndPoint = new IPEndPoint(ipAddr, port);
-
-            //Socket sender = new Socket(ipAddr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-            //// Соединяем сокет с удаленной точкой
-            //sender.Connect(ipEndPoint);
-
-            //string message = "";
-            //this.textBox1.Invoke((MethodInvoker)(() => message = this.textBox1.Text));
-
-            //this.label1.Invoke((MethodInvoker)(() => this.label1.Text = "Сокет соединяется с " + sender.RemoteEndPoint.ToString()));
-            
-            //byte[] msg = Encoding.UTF8.GetBytes(message);
-
-            //// Отправляем данные через сокет
-            //int bytesSent = sender.Send(msg);
-
-            //// Получаем ответ от сервера
-            //int bytesRec = sender.Receive(bytes);
-
-            //this.label1.Invoke((MethodInvoker)(() => this.label1.Text = "\nОтвет от сервера: {0}\n\n" + Encoding.UTF8.GetString(bytes, 0, bytesRec)));
-
-
-    
-
-            //// Освобождаем сокет
-            //sender.Shutdown(SocketShutdown.Both);
-            //sender.Close();
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)
@@ -105,7 +46,6 @@ namespace client
            port = int.Parse(textPort.Text);
                 // TcpListener server = new TcpListener(port);
            client = new TcpClient(textHost.Text, port);
-            
         }
 
         private async void getFiles_Click(object sender, EventArgs e)
@@ -120,28 +60,107 @@ namespace client
                 
                 // Send the message to the connected TcpServer.
                 await sw.WriteLineAsync("true");
-                textStatus.Text = "Click get files " + Environment.NewLine;
+                textStatus.Text += "Click get files " + Environment.NewLine;
 
                 string responseData = await sr.ReadLineAsync();
                 string[] arrayFiles = responseData.Trim().Split(';');
-                textStatus.Text = "Get files \n" + Environment.NewLine;
+                textStatus.Text += "Get files " + Environment.NewLine;
                 for (int j = 0; j < arrayFiles.Length; j++)
                 {
                     listFiles.Items.Add(arrayFiles[j]);
                 }
 
-            }
-            finally
+            } catch (Exception ex)
             {
                 sr.Close();
                 sw.Close();
                 client.Close();
             }
-}
+        }
 
         private void Form1_Load(object sender, EventArgs e)
         {
 
+        }
+
+        private async void button1_Click_1(object sender, EventArgs e)
+        {
+            StreamWriter sw = null;
+            StreamReader sr = null;
+            FileStream fileStream = null;
+            try
+            {
+                string curItem = listFiles.SelectedItem.ToString();
+                textStatus.Text += "Loading file " + curItem + "..." + Environment.NewLine;
+                sw = new StreamWriter(client.GetStream());
+                sr = new StreamReader(client.GetStream());
+                sw.AutoFlush = true;
+                await sw.WriteLineAsync(curItem);
+                byte[] recievedFile = null;
+                byte[] buffer = new byte[8];
+
+
+                // TODO: do something with the bas64 encoded string
+
+                while (true)
+                {
+                    int count = await sr.BaseStream.ReadAsync(buffer, 0, 8);
+                    if (count == 0)
+                    {
+                        break;
+                    }
+                    string base64Encoded = Convert.ToBase64String(buffer);
+                    buffer = Convert.FromBase64String(base64Encoded);
+                    if (recievedFile == null)
+                    {
+                        recievedFile = buffer;
+                    }
+                    else
+                    {
+                        recievedFile = recievedFile.Concat(buffer).ToArray();
+                    }
+
+                }
+
+                textStatus.Text += "Downloading file " + curItem + "..." + "Bytes: " + recievedFile.Length + Environment.NewLine;
+
+                ////Directory.CreateDirectory(Directory.GetCurrentDirectory() + "\\exe");
+                fileStream = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem);
+
+                fileStream.Write(recievedFile, 0, recievedFile.Length);
+                fileStream.Flush();
+                fileStream.Close();
+
+                // Use ProcessStartInfo class
+                textStatus.Text += "Start executing file " + curItem + "..." + Environment.NewLine;
+
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.UseShellExecute = false;
+                startInfo.FileName = Directory.GetCurrentDirectory() + "\\" + curItem;
+
+                try
+                {
+                    // Start the process with the info we specified.
+                    // Call WaitForExit and then the using statement will close.
+                    using (Process exeProcess = Process.Start(startInfo))
+                    {
+                        textStatus.Text += "Processing file " + curItem + "..." + Environment.NewLine;
+                        exeProcess.WaitForExit();
+                        textStatus.Text += "Close file " + curItem + "." + Environment.NewLine;
+                    }
+                }
+                catch
+                {
+                    textStatus.Text += "Error starting " + curItem + "." + Environment.NewLine;
+                }
+
+            } finally
+            {
+                sr.Close();
+                sw.Close();
+                client.Close();
+            }
+           
         }
     }
 
