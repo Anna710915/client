@@ -97,20 +97,15 @@ namespace client
                 sw.AutoFlush = true;
                 await sw.WriteLineAsync(curItem);
                 byte[] recievedFile = null;
-                byte[] buffer = new byte[8];
-
-
-                // TODO: do something with the bas64 encoded string
+                byte[] buffer = new byte[1];
 
                 while (true)
                 {
-                    int count = await sr.BaseStream.ReadAsync(buffer, 0, 8);
+                    int count = await client.GetStream().ReadAsync(buffer, 0, 1);
                     if (count == 0)
                     {
                         break;
                     }
-                    string base64Encoded = Convert.ToBase64String(buffer);
-                    buffer = Convert.FromBase64String(base64Encoded);
                     if (recievedFile == null)
                     {
                         recievedFile = buffer;
