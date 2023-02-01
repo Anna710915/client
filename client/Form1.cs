@@ -19,6 +19,7 @@ namespace client
     public partial class Form1 : Form
     {
         TcpClient client;
+        String ipAd;
         int port;
 
         public Form1()
@@ -43,39 +44,68 @@ namespace client
 
         private void buttonConnect_Click(object sender, EventArgs e)
         {
-           port = int.Parse(textPort.Text);
-                // TcpListener server = new TcpListener(port);
-           client = new TcpClient(textHost.Text, port);
+            try
+            {
+                port = int.Parse(textPort.Text);
+                IPAddress address = IPAddress.Parse(textHost.Text);
+                ipAd = textHost.Text;
+
+                if (client == null || !client.Connected)
+                {
+                    try
+                    {
+                        client = new TcpClient(textHost.Text, port);
+                    } catch
+                    {
+                        textStatus.Text += "Unable to connect to the server with IP = "
+                            + textHost.Text + " and port = " + port + Environment.NewLine;
+                    }
+                    
+                }
+                
+            }
+            catch(Exception ex)
+            {
+                textStatus.Text += "Invalid port or address: address - " + textHost.Text + 
+                    ". port - " + textPort.Text + Environment.NewLine;
+            }
+
         }
 
         private async void getFiles_Click(object sender, EventArgs e)
         {
-            StreamReader sr = null;
-            StreamWriter sw = null;
-            try
+            
+            if(client != null)
             {
-                sr = new StreamReader(client.GetStream());
-                sw = new StreamWriter(client.GetStream());
-                sw.AutoFlush = true;
-                
-                // Send the message to the connected TcpServer.
-                await sw.WriteLineAsync("true");
-                textStatus.Text += "Click get files " + Environment.NewLine;
+                StreamReader sr = null;
+                StreamWriter sw = null;
 
-                string responseData = await sr.ReadLineAsync();
-                string[] arrayFiles = responseData.Trim().Split(';');
-                textStatus.Text += "Get files " + Environment.NewLine;
-                for (int j = 0; j < arrayFiles.Length; j++)
+                try
                 {
-                    listFiles.Items.Add(arrayFiles[j]);
-                }
+                    sr = new StreamReader(client.GetStream());
+                    sw = new StreamWriter(client.GetStream());
+                    sw.AutoFlush = true;
 
-            } catch (Exception ex)
-            {
-                sr.Close();
-                sw.Close();
-                client.Close();
+                    // Send the message to the connected TcpServer.
+                    await sw.WriteLineAsync("true");
+                    textStatus.Text += "Click get files " + Environment.NewLine;
+
+                    string responseData = await sr.ReadLineAsync();
+                    string[] arrayFiles = responseData.Trim().Split(';');
+                    textStatus.Text += "Get files " + Environment.NewLine;
+                    listFiles.Items.Clear();
+                    for (int j = 0; j < arrayFiles.Length; j++)
+                    {
+                      listFiles.Items.Add(arrayFiles[j]);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    textStatus.Text += "Exception " + Environment.NewLine;
+                } 
             }
+            
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -85,76 +115,65 @@ namespace client
 
         private async void button1_Click_1(object sender, EventArgs e)
         {
-            StreamWriter sw = null;
-            StreamReader sr = null;
-            FileStream fileStream = null;
-            try
+            if(client != null && listFiles.SelectedItem != null)
             {
-                string curItem = listFiles.SelectedItem.ToString();
-                textStatus.Text += "Loading file " + curItem + "..." + Environment.NewLine;
-                sw = new StreamWriter(client.GetStream());
-                sr = new StreamReader(client.GetStream());
-                sw.AutoFlush = true;
-                await sw.WriteLineAsync(curItem);
-                byte[] recievedFile = null;
-                byte[] buffer = new byte[1];
-
-                while (true)
-                {
-                    int count = await client.GetStream().ReadAsync(buffer, 0, 1);
-                    if (count == 0)
-                    {
-                        break;
-                    }
-                    if (recievedFile == null)
-                    {
-                        recievedFile = buffer;
-                    }
-                    else
-                    {
-                        recievedFile = recievedFile.Concat(buffer).ToArray();
-                    }
-
-                }
-
-                textStatus.Text += "Downloading file " + curItem + "..." + "Bytes: " + recievedFile.Length + Environment.NewLine;
-
-                ////Directory.CreateDirectory(Directory.GetCurrentDirectory() + "\\exe");
-                fileStream = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem);
-
-                fileStream.Write(recievedFile, 0, recievedFile.Length);
-                fileStream.Flush();
-                fileStream.Close();
-
-                // Use ProcessStartInfo class
-                textStatus.Text += "Start executing file " + curItem + "..." + Environment.NewLine;
-
-                ProcessStartInfo startInfo = new ProcessStartInfo();
-                startInfo.UseShellExecute = false;
-                startInfo.FileName = Directory.GetCurrentDirectory() + "\\" + curItem;
+                StreamWriter sw = null;
+                StreamReader sr = null;
 
                 try
                 {
-                    // Start the process with the info we specified.
-                    // Call WaitForExit and then the using statement will close.
-                    using (Process exeProcess = Process.Start(startInfo))
-                    {
-                        textStatus.Text += "Processing file " + curItem + "..." + Environment.NewLine;
-                        exeProcess.WaitForExit();
-                        textStatus.Text += "Close file " + curItem + "." + Environment.NewLine;
-                    }
-                }
-                catch
-                {
-                    textStatus.Text += "Error starting " + curItem + "." + Environment.NewLine;
-                }
+                    string curItem = listFiles.SelectedItem.ToString();
+                    textStatus.Text += "Loading file " + curItem + "..." + Environment.NewLine;
+                    sw = new StreamWriter(client.GetStream());
+                    sr = new StreamReader(client.GetStream());
+                    sw.AutoFlush = true;
+                    await sw.WriteLineAsync(curItem);
+                    byte[] buffer = new byte[1024];
 
-            } finally
-            {
-                sr.Close();
-                sw.Close();
-                client.Close();
+                    textStatus.Text += "Downloading file " + curItem + "..." + Environment.NewLine;
+
+                    using (FileStream outputFile = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem))
+                    {
+                        while (true)
+                        {
+                            int count = await sr.BaseStream.ReadAsync(buffer, 0, buffer.Length);
+                            if (count == 0)
+                            {
+                                break;
+                            }
+                            await outputFile.WriteAsync(buffer, 0, count);
+                        }
+                    };
+
+                    ProcessStartInfo startInfo = new ProcessStartInfo();
+
+                    startInfo.UseShellExecute = true;
+                    startInfo.FileName = Directory.GetCurrentDirectory() + "\\" + curItem;
+
+                    try
+                    {
+                        // Start the process with the info we specified.
+                        // Call WaitForExit and then the using statement will close.
+                        using (Process exeProcess = Process.Start(startInfo))
+                        {
+                            textStatus.Text += "Processing file " + curItem + "..." + Environment.NewLine;
+                            exeProcess.WaitForExit();
+                            textStatus.Text += "Close file " + curItem + "." + Environment.NewLine;
+                        }
+                    }
+                    catch
+                    {
+                        textStatus.Text += "Error starting " + curItem + "." + Environment.NewLine;
+                    }
+
+
+
+                } catch (Exception ex)
+                {
+                    textStatus.Text += "Error: " + ex.Message + Environment.NewLine;
+                }
             }
+            
            
         }
     }

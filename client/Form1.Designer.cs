@@ -87,6 +87,7 @@ namespace client
             this.textStatus.Location = new System.Drawing.Point(51, 119);
             this.textStatus.Multiline = true;
             this.textStatus.Name = "textStatus";
+            this.textStatus.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textStatus.Size = new System.Drawing.Size(313, 284);
             this.textStatus.TabIndex = 11;
             // 
