@@ -1,25 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Net;
-using System.Threading;
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.Text;
 
 namespace client
 {
 
     public partial class Form1 : Form
     {
-        TcpClient client;
-        String ipAd;
+        public TcpClient client;
+        string serverIpAddress;
         int port;
 
         public Form1()
@@ -48,7 +41,7 @@ namespace client
             {
                 port = int.Parse(textPort.Text);
                 IPAddress address = IPAddress.Parse(textHost.Text);
-                ipAd = textHost.Text;
+                serverIpAddress = textHost.Text;
 
                 if (client == null || !client.Connected)
                 {
@@ -87,7 +80,7 @@ namespace client
                     sw.AutoFlush = true;
 
                     // Send the message to the connected TcpServer.
-                    await sw.WriteLineAsync("true");
+                    await sw.WriteLineAsync("listFiles");
                     textStatus.Text += "Click get files " + Environment.NewLine;
 
                     string responseData = await sr.ReadLineAsync();
@@ -117,33 +110,25 @@ namespace client
         {
             if(client != null && listFiles.SelectedItem != null)
             {
-                StreamWriter sw = null;
-                StreamReader sr = null;
-
                 try
                 {
+                    StreamWriter sw = new StreamWriter(client.GetStream());
                     string curItem = listFiles.SelectedItem.ToString();
                     textStatus.Text += "Loading file " + curItem + "..." + Environment.NewLine;
-                    sw = new StreamWriter(client.GetStream());
-                    sr = new StreamReader(client.GetStream());
                     sw.AutoFlush = true;
-                    await sw.WriteLineAsync(curItem);
+                    await sw.WriteLineAsync($"sendFile\n{curItem}");
                     byte[] buffer = new byte[1024];
 
                     textStatus.Text += "Downloading file " + curItem + "..." + Environment.NewLine;
 
                     using (FileStream outputFile = File.Create(Directory.GetCurrentDirectory() + "\\" + curItem))
                     {
-                        while (true)
+                        while (client.GetStream().DataAvailable)
                         {
-                            int count = await sr.BaseStream.ReadAsync(buffer, 0, buffer.Length);
-                            if (count == 0)
-                            {
-                                break;
-                            }
+                            int count = await client.GetStream().ReadAsync(buffer, 0, buffer.Length);
                             await outputFile.WriteAsync(buffer, 0, count);
                         }
-                    };
+                    }
 
                     ProcessStartInfo startInfo = new ProcessStartInfo();
 
